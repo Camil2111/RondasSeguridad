@@ -1,0 +1,33 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# --- Build / coverage ---
+dist/
+build/
+coverage/
+
+# --- Env y secretos ---
+.env
+*.env
+backend/.env
+frontend/.env
+
+# --- Archivos de subida locales ---
+backend/uploads/
+
+# --- Cache y temporales ---
+.vite/
+*.local
+
+# --- Sistema operativo / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Logs ---
+*.log
+logs/
