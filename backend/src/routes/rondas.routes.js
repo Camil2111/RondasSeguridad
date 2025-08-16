@@ -6,18 +6,24 @@ import Punto from "../models/PuntoControl.js";
 import { haversineMeters } from "../utils/geo.js";
 
 const router = Router();
-const MAX_DIST_M = Number(process.env.MAX_DIST_M || 80); // tolerancia distancia
+const MAX_DIST_M = Number(process.env.MAX_DIST_M || 80);
 
 // Iniciar una ronda
-router.post("/iniciar", auth(["vigilante","supervisor","admin"]), async (req, res, next) => {
+router.post("/iniciar", auth(["vigilante", "supervisor", "admin"]), async (req, res, next) => {
   try {
-    const ronda = await Ronda.create({ vigilanteId: req.user.id, estado: "en_proceso", puntos: [] });
+    const ronda = await Ronda.create({
+      vigilanteId: req.user.id,
+      estado: "en_proceso",
+      puntos: []
+    });
     res.json(ronda);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 });
 
 // Agregar punto con evidencia
-router.post("/:id/punto", auth(["vigilante","supervisor","admin"]), upload.single("foto"), async (req, res, next) => {
+router.post("/:id/punto", auth(["vigilante", "supervisor", "admin"]), upload.single("foto"), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { puntoId, lat, lng, tareas, observaciones } = req.body;
@@ -26,7 +32,8 @@ router.post("/:id/punto", auth(["vigilante","supervisor","admin"]), upload.singl
     if (!punto) return res.status(400).json({ error: "Punto no existe" });
 
     const latN = Number(lat), lngN = Number(lng);
-    const distancia = (isFinite(latN) && isFinite(lngN)) ? haversineMeters(latN, lngN, punto.ubicacion.lat, punto.ubicacion.lng) : null;
+    const distancia = (isFinite(latN) && isFinite(lngN)) ?
+      haversineMeters(latN, lngN, punto.ubicacion.lat, punto.ubicacion.lng) : null;
     const gpsConfirmado = distancia !== null && distancia <= MAX_DIST_M;
 
     const fotoUrl = req.file ? publicUrl(req.file.filename) : undefined;
@@ -48,17 +55,52 @@ router.post("/:id/punto", auth(["vigilante","supervisor","admin"]), upload.singl
 
     const ronda = await Ronda.findByIdAndUpdate(id, update, { new: true });
     if (!ronda) return res.status(404).json({ error: "Ronda no encontrada" });
+
     res.json(ronda);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 });
 
 // Finalizar ronda
-router.post("/:id/finalizar", auth(["vigilante","supervisor","admin"]), async (req, res, next) => {
+router.post("/:id/finalizar", auth(["vigilante", "supervisor", "admin"]), async (req, res, next) => {
   try {
-    const ronda = await Ronda.findByIdAndUpdate(req.params.id, { estado: "completada", fecha: new Date() }, { new: true });
+    const ronda = await Ronda.findByIdAndUpdate(
+      req.params.id,
+      { estado: "completada", fecha: new Date() },
+      { new: true }
+    );
     if (!ronda) return res.status(404).json({ error: "Ronda no encontrada" });
     res.json(ronda);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Historial de rondas completadas
+router.get("/", auth(["admin", "supervisor"]), async (req, res, next) => {
+  try {
+    const rondas = await Ronda.find({ estado: "completada" })
+      .populate("vigilanteId", "nombre")
+      .populate("puntos.puntoId", "nombre")
+      .sort({ fecha: -1 });
+
+    const dataFormateada = rondas.map((ronda) => ({
+      _id: ronda._id,
+      fechaInicio: ronda.fecha,
+      usuario: ronda.vigilanteId?.nombre || "Desconocido",
+      puntosVisitados: ronda.puntos.map((p) => ({
+        nombre: p.puntoId?.nombre || "Punto sin nombre",
+        tareas: (p.tareas || []).map((t) => `${t.nombre} (${t.estado})`),
+        observaciones: p.observaciones || ""
+      }))
+    }));
+
+    res.json(dataFormateada);
+  } catch (e) {
+    next(e);
+  }
 });
 
 export default router;
+
