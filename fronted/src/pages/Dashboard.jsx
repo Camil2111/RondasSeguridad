@@ -6,7 +6,6 @@ export default function Dashboard() {
   const [nombre, setNombre] = useState('');
 
   useEffect(() => {
-    // nombre desde token guardado (lo teníamos en el login)
     try {
       const token = localStorage.getItem('token');
       const payload = token?.split('.')[1];
