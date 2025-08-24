@@ -1,61 +1,108 @@
-import { useEffect, useState } from 'react';
-import { api } from '../api/client';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ShieldCheck,
+  LogOut,
+  MapPin,
+  ClipboardList,
+  PlusCircle,
+} from "lucide-react";
 
-export default function Dashboard() {
-  const [puntos, setPuntos] = useState([]);
-  const [nombre, setNombre] = useState('');
+function Dashboard() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState("");
+  const [controlPoints, setControlPoints] = useState([]);
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('token');
-      const payload = token?.split('.')[1];
-      if (payload) setNombre(JSON.parse(atob(payload)).nombre || '');
-    } catch {}
-    api.getPuntos().then(setPuntos).catch(()=>setPuntos([]));
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+
+    if (!storedUser || !token) return navigate("/");
+
+    setUser(storedUser);
+
+    // Consumir puntos desde el backend
+    fetch("http://localhost:4000/api/puntos", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setControlPoints(data))
+      .catch((err) => {
+        console.error("Error al obtener puntos:", err);
+        setControlPoints([]);
+      });
   }, []);
 
-  function logout() {
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-  }
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    navigate("/");
+  };
+
+  const handleStartRound = () => {
+    navigate("/ronda");
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">Rondas de Seguridad</h2>
-            <p className="text-sm text-slate-500 -mt-0.5">Hola{nombre ? `, ${nombre}` : ''}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <a href="/ronda" className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-black transition">
-              Iniciar Ronda
-            </a>
-            <button onClick={logout} className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100">
-              Salir
-            </button>
-          </div>
+      <header className="flex items-center justify-between px-6 py-5 bg-white shadow border-b">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <ShieldCheck className="text-blue-600" size={28} />
+            Rondas de Seguridad
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Bienvenido, <strong>{user}</strong>
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleStartRound}
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+          >
+            <PlusCircle size={18} />
+            Iniciar Ronda
+          </button>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100 transition"
+          >
+            <LogOut size={18} />
+            Salir
+          </button>
         </div>
       </header>
 
-      {/* Contenido */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <h3 className="text-sm font-medium text-slate-500 mb-3">Puntos de control</h3>
+      {/* Content */}
+      <main className="px-6 py-6">
+        <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <ClipboardList size={20} />
+          Puntos de control registrados
+        </h2>
 
-        {!puntos.length ? (
-          <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            No hay puntos de control aún.
-          </div>
+        {controlPoints.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            Aún no se han registrado puntos de control.
+          </p>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {puntos.map(p => (
-              <div key={p._id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-                <div className="font-semibold text-slate-900">{p.nombre}</div>
-                <div className="text-xs text-slate-500 mt-1">lat {p.ubicacion.lat}, lng {p.ubicacion.lng}</div>
-                <div className="text-xs text-slate-600 mt-2">
-                  Tareas: {p.tareasAsignadas.join(', ')}
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {controlPoints.map((point, index) => (
+              <div
+                key={index}
+                className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition p-5"
+              >
+                <h3 className="text-md font-semibold text-gray-800 flex items-center gap-2 mb-1">
+                  <MapPin size={18} className="text-blue-500" />
+                  {point.nombre}
+                </h3>
+                <p className="text-sm text-gray-500 mb-1">
+                  lat: {point.ubicacion.lat}, lng: {point.ubicacion.lng}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong className="text-gray-700">Tareas:</strong>{" "}
+                  {point.tareasAsignadas.join(", ")}
+                </p>
               </div>
             ))}
           </div>
@@ -64,3 +111,8 @@ export default function Dashboard() {
     </div>
   );
 }
+
+export default Dashboard;
+
+
+
